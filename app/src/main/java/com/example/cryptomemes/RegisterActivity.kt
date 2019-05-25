@@ -1,9 +1,8 @@
 package com.example.cryptomemes
 
-import android.app.Activity
+import android.support.v7.app.AppCompatActivity
 import android.content.Intent
 import android.net.Uri
-import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.provider.MediaStore
 import android.util.Log
@@ -43,7 +42,7 @@ class RegisterActivity : AppCompatActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
 
-        if (requestCode == 0 && resultCode == Activity.RESULT_OK && data != null) {
+        if (requestCode == 0 && resultCode == android.support.v7.app.AppCompatActivity.RESULT_OK && data != null) {
             avaUri = data.data
 
             val bitmap = MediaStore.Images.Media.getBitmap(contentResolver, avaUri)
@@ -113,6 +112,10 @@ class RegisterActivity : AppCompatActivity() {
         ref.setValue(user)
             .addOnSuccessListener {
                 Log.d(TAG, "GOOD User saved to database")
+
+                val intent = Intent(this, ActionActivity::class.java)
+                intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TASK.or(Intent.FLAG_ACTIVITY_NEW_TASK)
+                startActivity(intent)
             }
             .addOnFailureListener {
                 Log.d(TAG, "BAD Failed to save user to database: ${it.message}")
