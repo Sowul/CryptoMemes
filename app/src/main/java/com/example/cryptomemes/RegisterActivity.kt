@@ -1,16 +1,24 @@
 package com.example.cryptomemes
 
+import android.app.Activity
 import android.content.Intent
+import android.net.Uri
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
+import android.provider.MediaStore
 import android.util.Log
 import android.widget.Toast
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.storage.FirebaseStorage
 import kotlinx.android.synthetic.main.activity_register.*
+import net.kibotu.pgp.Pgp
+import java.util.*
 
 class RegisterActivity : AppCompatActivity() {
 
     val TAG = "RegisterActivity"
+    var avaUri: Uri? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -21,9 +29,27 @@ class RegisterActivity : AppCompatActivity() {
         }
 
         have_acc_txtview.setOnClickListener {
-            Log.d(TAG, "Showing login activity")
             val intent = Intent(this, LoginActivity::class.java)
             startActivity(intent)
+        }
+
+        ava_btn_reg.setOnClickListener {
+            val intent = Intent(Intent.ACTION_PICK)
+            intent.type = "image/*"
+            startActivityForResult(intent, 0)
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        if (requestCode == 0 && resultCode == Activity.RESULT_OK && data != null) {
+            avaUri = data.data
+
+            val bitmap = MediaStore.Images.Media.getBitmap(contentResolver, avaUri)
+
+            ava_imageview_reg.setImageBitmap(bitmap)
+            ava_btn_reg.alpha = 0f
         }
     }
 
@@ -43,10 +69,53 @@ class RegisterActivity : AppCompatActivity() {
                 if (!it.isSuccessful) return@addOnCompleteListener
 
                 Log.d(TAG, "GOOD Created user with uid: ${it.result?.user?.uid}")
+
+                uploadAva()
             }
             .addOnFailureListener {
                 Log.d(TAG, "BAD Failed to create user: ${it.message}")
                 Toast.makeText(this, "Failed to create user: ${it.message}", Toast.LENGTH_SHORT).show()
+            }
+    }
+
+    private fun uploadAva() {
+        if (avaUri == null) return
+
+        val filename = UUID.randomUUID().toString()
+        val ref = FirebaseStorage.getInstance().getReference("/images/$filename")
+
+        ref.putFile(avaUri!!)
+            .addOnSuccessListener {
+                Log.d(TAG, "GOOD Successfully uploaded image: ${it.metadata?.path}")
+
+                ref.downloadUrl.addOnSuccessListener {
+                    Log.d(TAG, "File url: $it")
+
+                    saveUser(it.toString())
+                }
+            }
+            .addOnFailureListener {
+                Log.d(TAG, "BAD Failed to upload image: ${it.message}")
+            }
+    }
+
+    private fun saveUser(avaUrl: String) {
+        val uid = FirebaseAuth.getInstance().uid ?: ""
+        val ref = FirebaseDatabase.getInstance().getReference("/users/$uid")
+
+        val pass = pass_edittxt_reg.text.toString()
+        val krgen = Pgp.generateKeyRingGenerator((pass+ UUID.randomUUID().toString()).toCharArray())
+        val publicKey = Pgp.genPGPPublicKey(krgen)
+        val privateKey = Pgp.genPGPPrivKey(krgen)
+
+        val user = User(uid, username_edittxt_reg.text.toString(), email_edittxt_reg.text.toString(), avaUrl, publicKey, privateKey)
+
+        ref.setValue(user)
+            .addOnSuccessListener {
+                Log.d(TAG, "GOOD User saved to database")
+            }
+            .addOnFailureListener {
+                Log.d(TAG, "BAD Failed to save user to database: ${it.message}")
             }
     }
 }
