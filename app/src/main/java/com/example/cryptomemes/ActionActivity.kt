@@ -53,7 +53,9 @@ class ActionActivity : AppCompatActivity() {
                 Log.d(TAG, "URL: $url")
 
                 if(Patterns.WEB_URL.matcher(url).matches()) {
-                    val intent = Intent(this, SelectFriendActivity::class.java)
+                    val intent = Intent(this, SelectUserActivity::class.java)
+                    intent.putExtra("from", "DECRYPT")
+                    intent.putExtra("url", url)
                     startActivity(intent)
                 }
                 else{
@@ -74,7 +76,7 @@ class ActionActivity : AppCompatActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
 
-        if (requestCode == ENCRYPT && resultCode == android.support.v7.app.AppCompatActivity.RESULT_OK && data != null) {
+        if (requestCode == ENCRYPT && resultCode == RESULT_OK && data != null) {
             val msgImgUri: Uri = data.data as Uri
             val cr = this.contentResolver
             val type: String = cr.getType(msgImgUri) as String
@@ -92,12 +94,14 @@ class ActionActivity : AppCompatActivity() {
                 Log.d(TAG, "mimeType: $type")
                 Log.d(TAG, "${type.split("/").last().replace("\"", "")}")
 
-                val intent = Intent(this, EnterMessageActivity::class.java)
-                //intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TASK.or(Intent.FLAG_ACTIVITY_NEW_TASK)
+                //val intent = Intent(this, EnterMessageActivity::class.java)
+                val intent = Intent(this, SelectUserActivity::class.java)
+                intent.putExtra("from", "ENCRYPT")
+                intent.putExtra("img", msgImgUri.toString())
                 startActivity(intent)
             }
         }
-        else if (requestCode == DECRYPT && resultCode == android.support.v7.app.AppCompatActivity.RESULT_OK && data != null) {
+        else if (requestCode == DECRYPT && resultCode == RESULT_OK && data != null) {
 
         }
     }
