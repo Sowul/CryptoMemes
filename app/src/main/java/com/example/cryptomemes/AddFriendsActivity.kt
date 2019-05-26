@@ -42,6 +42,16 @@ class AddFriendsActivity : AppCompatActivity() {
                     }
                 }
 
+                adapter.setOnItemClickListener { item, view ->
+
+                    val userItem = item as UserItem
+
+                    Log.d(TAG, "User ${userItem.user.username} clicked")
+
+                    //finish()
+
+                }
+
                 rv_add_friends.adapter = adapter
             }
 
