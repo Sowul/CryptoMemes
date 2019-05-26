@@ -1,16 +1,27 @@
 package com.example.cryptomemes
 
-import android.util.Log
-import net.kibotu.pgp.Pgp
-import java.util.*
+import com.squareup.picasso.Picasso
+import com.xwray.groupie.Item
+import com.xwray.groupie.ViewHolder
+import kotlinx.android.synthetic.main.user_row.view.*
 
 val TAG = "KEYS"
 
 class User(val uid: String, val username: String, val email: String, val avaUrl: String,
            val publicKey: String, val privateKey: String) {
 
-    init {
-        Log.d(TAG, "Public: $publicKey")
-        Log.d(TAG, "Private: $privateKey")
+    constructor(): this("", "", "", "", "", "")
+    constructor(uid: String, username: String, avaUrl: String, publicKey: String):
+            this(uid, username, "", avaUrl, publicKey, "")
+}
+
+class UserItem(val user: User): Item<ViewHolder>() {
+    override fun getLayout(): Int {
+        return R.layout.user_row
+    }
+
+    override fun bind(viewHolder: ViewHolder, position: Int) {
+        viewHolder.itemView.rv_username.text = user.username
+        Picasso.get().load(user.avaUrl).into(viewHolder.itemView.rv_ava)
     }
 }
