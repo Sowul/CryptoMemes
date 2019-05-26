@@ -102,10 +102,11 @@ class RegisterActivity : AppCompatActivity() {
 
     private fun saveUser(avaUrl: String) {
         val uid = FirebaseAuth.getInstance().uid ?: ""
+        val timestamp = FirebaseAuth.getInstance().currentUser?.metadata?.creationTimestamp.toString()
         val ref = FirebaseDatabase.getInstance().getReference("/users")
 
         val pass = pass_edittxt_reg.text.toString()
-        val krgen = Pgp.generateKeyRingGenerator((pass+ UUID.randomUUID().toString()).toCharArray())
+        val krgen = Pgp.generateKeyRingGenerator((uid + timestamp).toCharArray())
         val publicKey = Pgp.genPGPPublicKey(krgen)
         val privateKey = Pgp.genPGPPrivKey(krgen)
 
