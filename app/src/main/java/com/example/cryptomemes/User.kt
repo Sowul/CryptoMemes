@@ -13,6 +13,8 @@ class User(val uid: String, val username: String, val email: String, val avaUrl:
     constructor(): this("", "", "", "", "", "")
     constructor(uid: String, username: String, avaUrl: String, publicKey: String):
             this(uid, username, "", avaUrl, publicKey, "")
+    constructor(uid: String, email: String, privateKey: String):
+            this(uid, "", email, "", "", privateKey)
 }
 
 class UserItem(val user: User): Item<ViewHolder>() {
