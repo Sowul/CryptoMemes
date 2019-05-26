@@ -8,6 +8,8 @@ import android.provider.MediaStore
 import android.util.Log
 import android.widget.Toast
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.android.synthetic.main.activity_register.*
@@ -100,7 +102,7 @@ class RegisterActivity : AppCompatActivity() {
 
     private fun saveUser(avaUrl: String) {
         val uid = FirebaseAuth.getInstance().uid ?: ""
-        val ref = FirebaseDatabase.getInstance().getReference("/users/$uid")
+        val ref = FirebaseDatabase.getInstance().getReference("/users")
 
         val pass = pass_edittxt_reg.text.toString()
         val krgen = Pgp.generateKeyRingGenerator((pass+ UUID.randomUUID().toString()).toCharArray())
@@ -109,16 +111,28 @@ class RegisterActivity : AppCompatActivity() {
 
         val user = User(uid, username_edittxt_reg.text.toString(), email_edittxt_reg.text.toString(), avaUrl, publicKey, privateKey)
 
-        ref.setValue(user)
-            .addOnSuccessListener {
-                Log.d(TAG, "GOOD User saved to database")
+        saveUserData(user, ref)
+    }
 
-                val intent = Intent(this, ActionActivity::class.java)
-                intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TASK.or(Intent.FLAG_ACTIVITY_NEW_TASK)
-                startActivity(intent)
-            }
-            .addOnFailureListener {
-                Log.d(TAG, "BAD Failed to save user to database: ${it.message}")
-            }
+    private fun saveUserData(user: User, ref: DatabaseReference) {
+        try {
+            ref.child("pub").child(user.uid).child("uid").setValue(user.uid)
+            ref.child("pub").child(user.uid).child("username").setValue(user.username)
+            ref.child("pub").child(user.uid).child("avaUrl").setValue(user.avaUrl)
+            ref.child("pub").child(user.uid).child("publicKey").setValue(user.publicKey)
+            ref.child("priv").child(user.uid).child("uid").setValue(user.uid)
+            ref.child("priv").child(user.uid).child("privateKey").setValue(user.privateKey)
+            ref.child("priv").child(user.uid).child("email").setValue(user.email)
+
+            Log.d(TAG, "GOOD User saved to database")
+
+            val intent = Intent(this, ActionActivity::class.java)
+            intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TASK.or(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(intent)
+        }
+        catch (t: Throwable) {
+            Log.d(TAG, "BAD Failed to save user to database: ${t.message}")
+        }
+        finally {}
     }
 }
