@@ -10,6 +10,7 @@ import android.widget.Toast
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.android.synthetic.main.activity_action.*
 import android.content.DialogInterface
+import android.net.Uri
 import android.support.v7.app.AlertDialog
 import android.util.Patterns
 import android.widget.EditText
@@ -47,13 +48,12 @@ class ActionActivity : AppCompatActivity() {
             val input = EditText(this)
             alert.setView(input)
 
-            alert.setPositiveButton("Ok", DialogInterface.OnClickListener { dialog, whichButton ->
+            alert.setPositiveButton("Ok", DialogInterface.OnClickListener { _, _ ->
                 val url = input.text.toString()
                 Log.d(TAG, "URL: $url")
 
                 if(Patterns.WEB_URL.matcher(url).matches()) {
                     val intent = Intent(this, SelectFriendActivity::class.java)
-                    intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TASK.or(Intent.FLAG_ACTIVITY_NEW_TASK)
                     startActivity(intent)
                 }
                 else{
@@ -63,7 +63,7 @@ class ActionActivity : AppCompatActivity() {
             })
 
             alert.setNegativeButton("Cancel",
-                DialogInterface.OnClickListener { dialog, which ->
+                DialogInterface.OnClickListener { _, _ ->
                     // TODO Auto-generated method stub
                     return@OnClickListener
                 })
@@ -75,9 +75,9 @@ class ActionActivity : AppCompatActivity() {
         super.onActivityResult(requestCode, resultCode, data)
 
         if (requestCode == ENCRYPT && resultCode == android.support.v7.app.AppCompatActivity.RESULT_OK && data != null) {
-            val msgImgUri = data.data
+            val msgImgUri: Uri = data.data as Uri
             val cr = this.contentResolver
-            val type = cr.getType(data.data)
+            val type: String = cr.getType(msgImgUri) as String
 
             if (type.split("/").last().replace("\"", "") == "png") {
                 Toast.makeText(this, "File should be in .jpg format", Toast.LENGTH_LONG).show()
