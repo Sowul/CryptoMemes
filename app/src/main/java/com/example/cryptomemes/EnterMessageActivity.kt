@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.support.v7.app.AppCompatActivity
@@ -156,6 +157,9 @@ class EnterMessageActivity : AppCompatActivity() {
                             Log.d(TAG, "outputFile: $outputFile deleted")
                             outputFile.delete()
                         }
+                        val intent = Intent(this, ActionActivity::class.java)
+                        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TASK.or(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        startActivity(intent)
                     }
                 }
             }
@@ -173,6 +177,7 @@ class EnterMessageActivity : AppCompatActivity() {
         Pgp.setPublicKey(publicKey)
 
         val encString = Pgp.encrypt(msg)
+
         Log.d(TAG, "size of original: ${encString?.length}")
         val zippedEncString = gzip(encString!!)
         Log.d(TAG, "size zipped: ${zippedEncString.size}")
@@ -183,7 +188,19 @@ class EnterMessageActivity : AppCompatActivity() {
     }
 
     private fun concat(img: String, msg: String): String {
-        return img+msg
+        var testImg = ""
+        if (img.takeLast(2) == "==") {
+            testImg = img.dropLast(2)
+            testImg += "++"
+        }
+        else if (img.takeLast(1) == "=") {
+            testImg = img.dropLast(1)
+            testImg += "+"
+        }
+        else {
+            return img+msg
+        }
+        return testImg+msg
     }
 
     private fun gzip(content: String): ByteArray {
