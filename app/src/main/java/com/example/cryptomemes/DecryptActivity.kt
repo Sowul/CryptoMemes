@@ -47,14 +47,14 @@ class DecryptActivity : AppCompatActivity() {
         var myPublicKey = ""
         var myPrivateKey = ""
 
-         val refPub = FirebaseDatabase.getInstance().getReference("/users/pub").child(uid)
-         refPub.addListenerForSingleValueEvent(object: ValueEventListener {
-             override fun onDataChange(p0: DataSnapshot) {
+        val refPub = FirebaseDatabase.getInstance().getReference("/users/pub").child(uid)
+        refPub.addListenerForSingleValueEvent(object: ValueEventListener {
+            override fun onDataChange(p0: DataSnapshot) {
                 val user = p0.getValue(User::class.java)
                 myPublicKey = user!!.publicKey
-             }
-             override fun onCancelled(p0: DatabaseError) {}
-         })
+            }
+            override fun onCancelled(p0: DatabaseError) {}
+        })
 
         val refPriv = FirebaseDatabase.getInstance().getReference("/users/priv").child(uid)
         refPriv.addListenerForSingleValueEvent(object: ValueEventListener {
@@ -76,6 +76,7 @@ class DecryptActivity : AppCompatActivity() {
         var metadataUrl = ""
         var msgSize = 0
 
+        /*
         ref.metadata.addOnSuccessListener {
             // Metadata now contains the metadata for 'images/forest.jpg'
             id = it.getCustomMetadata("id")
@@ -88,7 +89,31 @@ class DecryptActivity : AppCompatActivity() {
         }.addOnFailureListener {
             // Uh-oh, an error occurred!
         }
+        */
 
+        val thread = Thread(Runnable {
+            try {
+                ref.metadata.addOnSuccessListener {
+                    // Metadata now contains the metadata for 'images/forest.jpg'
+                    id = it.getCustomMetadata("id")
+                    metadataUrl = it.getCustomMetadata("url")
+                    msgSize = it.getCustomMetadata("size").toInt()
+
+                    Log.d(TAG, "id: $id")
+                    Log.d(TAG, "url: $metadataUrl")
+                    Log.d(TAG, "size: $msgSize")
+                }.addOnFailureListener {
+                    // Uh-oh, an error occurred!
+                }
+            }
+            catch (e: Exception) {
+                e.printStackTrace()
+            }
+        })
+
+        thread.start()
+
+        /*
         val localFile = File.createTempFile("images", "jpg")
         Log.d(TAG, "localFile $localFile created")
 
@@ -105,6 +130,33 @@ class DecryptActivity : AppCompatActivity() {
         }.addOnFailureListener {
             // Handle any errors
         }
+        */
+
+        val thread2 = Thread(Runnable {
+            try {
+                val localFile = File.createTempFile("images", "jpg")
+                Log.d(TAG, "localFile $localFile created")
+
+                ref.getFile(localFile).addOnSuccessListener {
+                    // Local temp file has been created
+                    Log.d(TAG, "Local temp file has been created")
+                    if (localFile.length() != 0L) {
+                        val decodedMsg = test(localFile, id, metadataUrl, msgSize, myPublicKey, myPrivateKey, pass)
+                        decrypted_txtview.text = decodedMsg
+                    }
+                    else {
+                        Log.d(TAG, "localFile puste, coś poszło źle :(")
+                    }
+                }.addOnFailureListener {
+                    // Handle any errors
+                }
+            }
+            catch (e: Exception) {
+                e.printStackTrace()
+            }
+        })
+
+        thread2.start()
     }
 
     private fun test(localFile: File,
@@ -123,6 +175,7 @@ class DecryptActivity : AppCompatActivity() {
         Log.d(TAG, "base64 start: ${base64.substring(0, 10)}")
         Log.d(TAG, "base64 end: ${base64.takeLast(10)}")
 
+        Log.d(TAG, "msgSize: $msgSize")
         val zippedB64 = base64.takeLast(msgSize)
         Log.d(TAG, "encryptedMsg len: ${zippedB64.length}")
         Log.d(TAG, "encryptedMsg end: ${zippedB64.takeLast(10)}")
