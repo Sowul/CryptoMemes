@@ -1,5 +1,8 @@
 package com.example.cryptomemes
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.net.Uri
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
@@ -10,6 +13,8 @@ import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
+import com.google.firebase.storage.FirebaseStorage
+import com.google.firebase.storage.StorageMetadata
 import io.github.rybalkinsd.kohttp.dsl.httpPost
 import io.github.rybalkinsd.kohttp.ext.url
 import kotlinx.android.synthetic.main.activity_enter_message.*
@@ -17,6 +22,7 @@ import net.kibotu.pgp.Pgp
 import okhttp3.Response
 import org.json.JSONObject
 import java.io.*
+import java.util.*
 import java.util.zip.GZIPInputStream
 import java.util.zip.GZIPOutputStream
 import kotlin.text.Charsets.UTF_8
@@ -26,9 +32,6 @@ import kotlin.text.Charsets.UTF_8
 class EnterMessageActivity : AppCompatActivity() {
 
     val TAG = "EnterMessageActivity"
-
-    val clientId = ""
-    val clientSecret = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -70,9 +73,9 @@ class EnterMessageActivity : AppCompatActivity() {
                 //val myPublicKey = ref.child("pub").child(uid).key("publicKey")
 
                 val publicKey = intent.getStringExtra("publicKey")
-                val img = Uri.parse(intent.getStringExtra("img"))
+                val imgUri = Uri.parse(intent.getStringExtra("img"))
 
-                Log.d(TAG, "$img")
+                Log.d(TAG, "$imgUri")
                 Log.d(TAG, msg)
                 //Log.d(TAG, "$publicKey")
 
@@ -95,55 +98,21 @@ class EnterMessageActivity : AppCompatActivity() {
                 //val decrypted = Pgp.decrypt(encrypted.toString(), pass)
                 //Log.d(TAG, "dec:\n${decrypted.toString()}")
 
+                /*
                 var a = ""
                 for (b in zipped) {
                     val st = String.format("%02X", b)
                     a += st
                 }
-                Log.d(TAG, "Co to: $a")
+                */
+                //Log.d(TAG, "Co to: $a")
 
-                val f = contentResolver.openInputStream(img).readBytes()
-                Log.d(TAG, f.toString())
+                //val f = contentResolver.openInputStream(img).readBytes()
+                //Log.d(TAG, f.toString())
 
-                val thread = Thread(Runnable {
-                    try {
-                        val response: Response = httpPost {
 
-                            url("https://api.imgur.com/3/image")
-
-                            //param { ... }
-                            header { "Authorization" to "Client-ID $clientId" }
-
-                            //TODO FFS jak to zrobić?
-                            body {
-                                form {                              //  Resulting form will not contain ' ', '\t', '\n'
-                                    bytes(File(img).readBytes())             //  login=user&
-                                    //"type" to "file" //  email=john.doe@gmail.com
-                                }
-                            }
-                            /* DZIAŁa
-                            body {
-                                form {                              //  Resulting form will not contain ' ', '\t', '\n'
-                                    "image" to "https://i.imgur.com/35A6opg.png"               //  login=user&
-                                    //"type" to "url" //  email=john.doe@gmail.com
-                                }
-                            }
-                            */
-                        }
-                        Log.d(TAG, response.isSuccessful.toString())
-                        val json = JSONObject(response.body()?.string()).getJSONObject("data").get("link")
-                        Log.d(TAG, json.toString())
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
-                })
-
-                thread.start()
+                uploadEncryptedMsg(imgUri, msg)
             }
-            //val user =
-            //val intent = Intent(Intent.ACTION_PICK)
-            //intent.type = "image/*"
-            //startActivityForResult(intent, 0)
         }
     }
 
@@ -156,13 +125,82 @@ class EnterMessageActivity : AppCompatActivity() {
     fun ungzip(content: ByteArray): String =
         GZIPInputStream(content.inputStream()).bufferedReader(UTF_8).use { it.readText() }
 
-    private fun createImageFile(uri: Uri): File {
-        val stream = FileOutputStream(uri.toString())
-        val writer = OutputStreamWriter(stream)
-        writer.write("")
-        writer.flush()
-        writer.close()
-        stream.close()
-        return File(uri.toString())
+    private fun uploadEncryptedMsg(imgUri: Uri?, msg: String) {
+        val clientId = ""
+
+        val img = Base64.getEncoder().encodeToString(contentResolver.openInputStream(imgUri!!).readBytes())
+        Log.d(TAG, "a: $img")
+        Log.d(TAG, "a: ${img.length}")
+
+        val thread = Thread(Runnable {
+            try {
+                val response: Response = httpPost {
+
+                    url("https://api.imgur.com/3/image")
+
+                    header { "Authorization" to "Client-ID $clientId" }
+
+                    body {
+                        form {
+                            "image" to img
+                        }
+                    }
+                }
+                Log.d(TAG, response.isSuccessful.toString())
+                if (response.isSuccessful) {
+                    val json = JSONObject(response.body()?.string())
+                    val link = json.getJSONObject("data").get("link").toString()
+
+                    Log.d(TAG, "imgur url: $link")
+
+                    encryptAndUploadMsg(link, imgUri, msg)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        })
+
+        thread.start()
+    }
+
+    private fun encryptAndUploadMsg(imgurUrl: String, imgUri: Uri?, msg: String) {
+        Log.d(TAG, "encryptAndUploadMsg filename: $imgurUrl")
+        Log.d(TAG, "encryptAndUploadMsg msg: $msg")
+
+        //TODO tu spróbuję wrzucić to razem z metadatą
+        //Działa
+        val filename = imgurUrl.split('/').last()
+        Log.d(TAG, "imgur url: $filename")
+
+        val ref = FirebaseStorage.getInstance().getReference("/msgs/$filename")
+        var metadata = StorageMetadata.Builder()
+            .setCustomMetadata("imgurUrl", imgurUrl)
+            .setCustomMetadata("msgSize", msg.length.toString())
+            .build()
+
+        ref.putFile(imgUri!!, metadata)
+            .addOnSuccessListener {
+                Log.d(TAG, "GOOD Successfully uploaded image: ${it.metadata?.path}")
+                Log.d(TAG, "GOOD Metadata set for $it")
+
+                ref.downloadUrl.addOnSuccessListener {
+                    Log.d(TAG, "File url: $it")
+                }
+                ref.metadata.addOnSuccessListener {
+                    Log.d(TAG, "GOOD Metadata imgurUrl: ${it.getCustomMetadata("imgurUrl")}")
+                    Log.d(TAG, "GOOD Metadata msgSize: ${it.getCustomMetadata("msgSize")}")
+
+                    val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    val clip: ClipData = ClipData.newPlainText("Imgur URL", imgurUrl)
+                    clipboard.primaryClip = clip
+
+                    if (clipboard.hasPrimaryClip()) {
+                        Toast.makeText(this, "$imgurUrl is in your clipboard.\nYou can now send it to you friend.", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+            .addOnFailureListener {
+                Log.d(TAG, "BAD Failed to upload image: ${it.message}")
+            }
     }
 }
