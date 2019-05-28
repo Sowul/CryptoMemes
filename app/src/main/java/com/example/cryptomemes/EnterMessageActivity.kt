@@ -1,30 +1,31 @@
 package com.example.cryptomemes
 
+import android.Manifest
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
+import android.os.Environment
+import android.support.v4.app.ActivityCompat
+import android.support.v4.content.ContextCompat
 import android.util.Log
 import android.widget.Toast
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.database.DataSnapshot
-import com.google.firebase.database.DatabaseError
-import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.database.ValueEventListener
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.StorageMetadata
 import io.github.rybalkinsd.kohttp.dsl.httpPost
 import io.github.rybalkinsd.kohttp.ext.url
-import junit.framework.Assert.assertTrue
 import kotlinx.android.synthetic.main.activity_enter_message.*
 import net.kibotu.pgp.Pgp
 import okhttp3.Response
 import org.json.JSONObject
 import java.io.*
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.*
-import java.util.zip.GZIPInputStream
 import java.util.zip.GZIPOutputStream
 import kotlin.text.Charsets.UTF_8
 
@@ -92,11 +93,24 @@ class EnterMessageActivity : AppCompatActivity() {
     }
 
     private fun encryptAndUploadMsg(imgurUrl: String, imgUri: Uri?, msg: String) {
+
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            != PackageManager.PERMISSION_GRANTED) {
+            Log.d(TAG, "Permission is not granted")
+
+            ActivityCompat.requestPermissions(this,
+                arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE),
+                1)
+        }
+
         Log.d(TAG, "encryptAndUploadMsg filename: $imgurUrl")
         Log.d(TAG, "encryptAndUploadMsg msg: $msg")
 
+        val imgBase64 = Base64.getEncoder().encodeToString(contentResolver.openInputStream(imgUri!!).readBytes())
+        Log.d(TAG, "returned imgBase64 len: ${imgBase64.length}")
         val encryptedMsg = encryptMsg(msg)
         Log.d(TAG, "returned encMsg len: ${encryptedMsg.length}")
+        val msgInImg = concat(imgBase64, encryptedMsg)
 
         val filename = imgurUrl.split('/').last()
         Log.d(TAG, "imgur url: $filename")
@@ -108,9 +122,13 @@ class EnterMessageActivity : AppCompatActivity() {
             .setCustomMetadata("size", encryptedMsg.length.toString())
             .build()
 
-        //dodać encMsg to img
+        val imageByteArray = Base64.getDecoder().decode(msgInImg)
+        val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-kkmmss"))
+        val outputFile = File(Environment.getExternalStorageDirectory().absolutePath + "/temp-$timestamp.jpg")
+        outputFile.writeBytes(imageByteArray)
+        Log.d(TAG, "outputFile: $outputFile")
 
-        ref.putFile(imgUri!!, metadata)
+        ref.putFile(Uri.fromFile(outputFile), metadata)
             .addOnSuccessListener {
                 Log.d(TAG, "GOOD Successfully uploaded image: ${it.metadata?.path}")
                 Log.d(TAG, "GOOD Metadata set for $it")
@@ -127,9 +145,17 @@ class EnterMessageActivity : AppCompatActivity() {
                     val clip: ClipData = ClipData.newPlainText("Imgur URL", imgurUrl)
                     clipboard.primaryClip = clip
 
-                    // TODO zamienić na alert?
+                    // TODO Toast zamienić na alert?
                     if (clipboard.hasPrimaryClip()) {
                         Toast.makeText(this, "$imgurUrl is in your clipboard.\nYou can now send it to you friend.", Toast.LENGTH_LONG).show()
+                        Log.d(TAG, "img start: ${imgBase64.substring(0, 10)}")
+                        Log.d(TAG, "encMsg end: ${encryptedMsg.takeLast(10)}")
+                        Log.d(TAG, "suma start: ${msgInImg.substring(0, 10)}")
+                        Log.d(TAG, "suma end: ${msgInImg.takeLast(10)}")
+                        if (outputFile.exists()) {
+                            Log.d(TAG, "outputFile: $outputFile deleted")
+                            outputFile.delete()
+                        }
                     }
                 }
             }
@@ -139,58 +165,19 @@ class EnterMessageActivity : AppCompatActivity() {
     }
 
     private fun encryptMsg(msg: String): String {
-        //val uid = FirebaseAuth.getInstance().uid ?: ""
-
-        /*
-        var myPublicKey = ""
-        var myPrivateKey = ""
-
-        val refPub = FirebaseDatabase.getInstance().getReference("/users/pub").child(uid)
-        refPub.addListenerForSingleValueEvent(object: ValueEventListener {
-            override fun onDataChange(p0: DataSnapshot) {
-                val user = p0.getValue(User::class.java)
-                myPublicKey = user?.publicKey as String
-            }
-            override fun onCancelled(p0: DatabaseError) {}
-        })
-
-        val refPriv = FirebaseDatabase.getInstance().getReference("/users/priv").child(uid)
-        refPriv.addListenerForSingleValueEvent(object: ValueEventListener {
-            override fun onDataChange(p0: DataSnapshot) {
-                val user = p0.getValue(User::class.java)
-                myPrivateKey = user?.privateKey as String
-                //Log.d(TAG, "myPrivateKey:\n$myPrivateKey")
-            }
-            override fun onCancelled(p0: DatabaseError) {}
-        })
-
-        //val myPublicKey = ref.child("pub").child(uid).key("publicKey")
-        */
-        val publicKey = intent.getStringExtra("publicKey")//klucz wcześniej wybranego usera
+        val publicKey = intent.getStringExtra("publicKey")
 
         Log.d(TAG, "GOOD encryptMsg: $msg")
         Log.d(TAG, "$publicKey")
 
         Pgp.setPublicKey(publicKey)
-        //Pgp.setPublicKey(myPublicKey)
-        //Pgp.setPrivateKey(myPrivateKey)
-        //val pass = FirebaseAuth.getInstance().uid + FirebaseAuth.getInstance().currentUser?.metadata?.creationTimestamp.toString()
-        //Log.d(TAG, "pass:\n$pass")
 
-        //etest
         val encString = Pgp.encrypt(msg)
         Log.d(TAG, "size of original: ${encString?.length}")
         val zippedEncString = gzip(encString!!)
         Log.d(TAG, "size zipped: ${zippedEncString.size}")
         val zipped2B64 = Base64.getEncoder().encodeToString(zippedEncString)
         Log.d(TAG, "size encZipped2Base64: ${zipped2B64.length}")
-
-        //dtest
-        val b64toZip = Base64.getDecoder().decode(zipped2B64)
-        Log.d(TAG, "size b64toZip: ${b64toZip.size}")
-        val unzipped = ungzip(b64toZip)
-        Log.d(TAG, "size unzipped: ${unzipped.length}")
-        Log.d(TAG, "${assertTrue(unzipped == encString)}")
 
         return zipped2B64
     }
@@ -199,12 +186,9 @@ class EnterMessageActivity : AppCompatActivity() {
         return img+msg
     }
 
-    fun gzip(content: String): ByteArray {
+    private fun gzip(content: String): ByteArray {
         val bos = ByteArrayOutputStream()
         GZIPOutputStream(bos).bufferedWriter(UTF_8).use { it.write(content) }
         return bos.toByteArray()
     }
-
-    fun ungzip(content: ByteArray): String =
-        GZIPInputStream(content.inputStream()).bufferedReader(UTF_8).use { it.readText() }
 }
