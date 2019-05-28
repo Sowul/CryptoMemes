@@ -54,6 +54,11 @@ class SelectUserActivity : AppCompatActivity() {
 
                     if (intent.getStringExtra("from") == "DECRYPT") {
                         Log.d(TAG, "FROM: ${intent.getStringExtra("from")}")
+                        val intent2 = Intent(this@SelectUserActivity, DecryptActivity::class.java)
+                        intent2.putExtra("from", intent.getStringExtra("from"))
+                        intent2.putExtra("uid", userItem.user.uid)
+                        intent2.putExtra("url", intent.getStringExtra("url"))
+                        startActivity(intent2)
                     }
                     else if (intent.getStringExtra("from") == "ENCRYPT") {
                         Log.d(TAG, "FROM: ${intent.getStringExtra("from")}")
