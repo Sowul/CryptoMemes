@@ -6,7 +6,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         tools:context=".DecryptActivity">
-
+    <include layout="@layout/loading"/>
     <TextView
             android:layout_width="349dp"
             android:layout_height="453dp"

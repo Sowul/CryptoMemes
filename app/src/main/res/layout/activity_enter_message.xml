@@ -7,7 +7,7 @@
         android:layout_height="match_parent"
         android:background="#424242"
         tools:context=".EnterMessageActivity">
-
+    <include layout="@layout/loading"/>
     <TextView
             android:id="@+id/msg_hint_txtview"
             android:layout_width="wrap_content"

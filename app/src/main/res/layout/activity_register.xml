@@ -6,7 +6,7 @@
                                             android:layout_height="match_parent"
                                             android:background="#424242"
                                             tools:context=".RegisterActivity">
-
+    <include layout="@layout/loading"/>
     <Button
             android:id="@+id/ava_btn_reg"
             android:layout_width="150dp"

@@ -5,7 +5,7 @@
                                             android:layout_width="match_parent"
                                             android:layout_height="match_parent"
                                             android:background="#424242">
-
+    <include layout="@layout/loading"/>
     <EditText
             android:id="@+id/email_edittxt_log"
             android:layout_width="0dp"

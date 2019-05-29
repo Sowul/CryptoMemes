@@ -7,7 +7,7 @@
         android:layout_height="match_parent"
         android:background="#424242"
         tools:context=".SelectUserActivity">
-
+    <include layout="@layout/loading"/>
     <android.support.v7.widget.RecyclerView
             android:id="@+id/rv_select_user"
             app:layoutManager="android.support.v7.widget.LinearLayoutManager"
