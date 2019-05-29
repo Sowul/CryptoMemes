@@ -17,6 +17,10 @@
             android:supportsRtl="true"
             android:theme="@style/AppTheme">
         <activity android:name=".DecryptActivity">
+            <meta-data
+                    android:name="android.support.PARENT_ACTIVITY"
+                    android:value=".ActionActivity">
+            </meta-data>
         </activity>
         <activity android:name=".EnterMessageActivity">
             <meta-data
