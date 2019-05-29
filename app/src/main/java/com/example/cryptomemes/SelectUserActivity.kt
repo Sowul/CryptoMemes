@@ -1,10 +1,11 @@
 package com.example.cryptomemes
 
-import android.content.Context
 import android.content.Intent
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
+import android.view.View
+import android.widget.FrameLayout
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
@@ -32,6 +33,10 @@ class SelectUserActivity : AppCompatActivity() {
 
     private fun getUsers(adapter: GroupAdapter<ViewHolder>) {
         val ref = FirebaseDatabase.getInstance().getReference("/users/pub")
+
+        val progressOverlay = findViewById<FrameLayout>(R.id.progress_overlay)
+        progressOverlay.visibility = View.VISIBLE
+
         ref.addListenerForSingleValueEvent(object: ValueEventListener {
 
             override fun onDataChange(p0: DataSnapshot) {
@@ -58,6 +63,7 @@ class SelectUserActivity : AppCompatActivity() {
                         intent2.putExtra("from", intent.getStringExtra("from"))
                         intent2.putExtra("uid", userItem.user.uid)
                         intent2.putExtra("url", intent.getStringExtra("url"))
+                        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TASK.or(Intent.FLAG_ACTIVITY_NEW_TASK)
                         startActivity(intent2)
                     }
                     else if (intent.getStringExtra("from") == "ENCRYPT") {
@@ -66,6 +72,7 @@ class SelectUserActivity : AppCompatActivity() {
                         intent2.putExtra("from", intent.getStringExtra("from"))
                         intent2.putExtra("publicKey", userItem.user.publicKey)
                         intent2.putExtra("img", intent.getStringExtra("img"))
+                        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TASK.or(Intent.FLAG_ACTIVITY_NEW_TASK)
                         startActivity(intent2)
                     }
                     else {
@@ -74,6 +81,8 @@ class SelectUserActivity : AppCompatActivity() {
                 }
 
                 rv_select_user.adapter = adapter
+
+                progressOverlay.visibility = View.INVISIBLE
             }
 
             override fun onCancelled(p0: DatabaseError) {}

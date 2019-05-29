@@ -13,6 +13,8 @@ import android.os.Environment
 import android.support.v4.app.ActivityCompat
 import android.support.v4.content.ContextCompat
 import android.util.Log
+import android.view.View
+import android.widget.FrameLayout
 import android.widget.Toast
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.storage.FirebaseStorage
@@ -50,7 +52,10 @@ class EnterMessageActivity : AppCompatActivity() {
                 val imgUri = Uri.parse(intent.getStringExtra("img"))
                 val msg = msg_edittxt.text.toString()
 
+                val progressOverlay = findViewById<FrameLayout>(R.id.progress_overlay)
+                progressOverlay.visibility = View.VISIBLE
                 uploadEncryptedMsg(imgUri, msg)
+                progressOverlay.visibility = View.INVISIBLE
             }
         }
     }

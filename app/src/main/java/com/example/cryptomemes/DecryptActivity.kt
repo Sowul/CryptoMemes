@@ -1,9 +1,15 @@
 package com.example.cryptomemes
 
+import android.content.DialogInterface
 import android.content.Intent
+import android.net.Uri
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
+import android.support.v7.app.AlertDialog
 import android.util.Log
+import android.view.View
+import android.widget.FrameLayout
+import android.widget.Toast
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuth.*
 import com.google.firebase.database.DataSnapshot
@@ -12,6 +18,7 @@ import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.android.synthetic.main.activity_decrypt.*
+import kotlinx.android.synthetic.main.activity_enter_message.*
 import moe.tlaster.kotlinpgp.KotlinPGP
 import net.kibotu.pgp.Pgp
 import java.io.File
@@ -41,6 +48,7 @@ class DecryptActivity : AppCompatActivity() {
         startActivity(intent)
         finish()
     }
+
     private fun decryptMsg() {
         val uid = getInstance().uid ?: ""
 
@@ -70,27 +78,24 @@ class DecryptActivity : AppCompatActivity() {
 
         val filename = intent.getStringExtra("url").split('/').last()
 
+        try {
+            FirebaseStorage.getInstance().getReference("/msgs/$filename")
+        } catch (e: Exception) {
+            Log.d(TAG, "testo")
+            e.printStackTrace()
+            Toast.makeText(this, "Message does not exist", Toast.LENGTH_LONG).show()
+            val intent = Intent(this, ActionActivity::class.java)
+            intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TASK.or(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(intent)
+        }
         val ref = FirebaseStorage.getInstance().getReference("/msgs/$filename")
 
         var id = ""
         var metadataUrl = ""
         var msgSize = 0
 
-        /*
-        ref.metadata.addOnSuccessListener {
-            // Metadata now contains the metadata for 'images/forest.jpg'
-            id = it.getCustomMetadata("id")
-            metadataUrl = it.getCustomMetadata("url")
-            msgSize = it.getCustomMetadata("size").toInt()
-
-            Log.d(TAG, "id: $id")
-            Log.d(TAG, "url: $metadataUrl")
-            Log.d(TAG, "size: $msgSize")
-        }.addOnFailureListener {
-            // Uh-oh, an error occurred!
-        }
-        */
-
+        val progressOverlay = findViewById<FrameLayout>(R.id.progress_overlay)
+        progressOverlay.visibility = View.VISIBLE
         val thread = Thread(Runnable {
             try {
                 ref.metadata.addOnSuccessListener {
@@ -108,29 +113,15 @@ class DecryptActivity : AppCompatActivity() {
             }
             catch (e: Exception) {
                 e.printStackTrace()
+                progressOverlay.visibility = View.INVISIBLE
+                Toast.makeText(this, "Message does not exist", Toast.LENGTH_LONG).show()
+                val intent = Intent(this, ActionActivity::class.java)
+                intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TASK.or(Intent.FLAG_ACTIVITY_NEW_TASK)
+                startActivity(intent)
             }
         })
 
         thread.start()
-
-        /*
-        val localFile = File.createTempFile("images", "jpg")
-        Log.d(TAG, "localFile $localFile created")
-
-        ref.getFile(localFile).addOnSuccessListener {
-            // Local temp file has been created
-            Log.d(TAG, "Local temp file has been created")
-            if (localFile.length() != 0L) {
-                val decodedMsg = test(localFile, id, metadataUrl, msgSize, myPublicKey, myPrivateKey, pass)
-                decrypted_txtview.text = decodedMsg
-            }
-            else {
-                Log.d(TAG, "localFile puste, coś poszło źle :(")
-            }
-        }.addOnFailureListener {
-            // Handle any errors
-        }
-        */
 
         val thread2 = Thread(Runnable {
             try {
@@ -141,7 +132,9 @@ class DecryptActivity : AppCompatActivity() {
                     // Local temp file has been created
                     Log.d(TAG, "Local temp file has been created")
                     if (localFile.length() != 0L) {
+                        progressOverlay.visibility = View.VISIBLE
                         val decodedMsg = test(localFile, id, metadataUrl, msgSize, myPublicKey, myPrivateKey, pass)
+                        progressOverlay.visibility = View.INVISIBLE
                         decrypted_txtview.text = decodedMsg
                     }
                     else {
@@ -149,6 +142,11 @@ class DecryptActivity : AppCompatActivity() {
                     }
                 }.addOnFailureListener {
                     // Handle any errors
+                    progressOverlay.visibility = View.INVISIBLE
+                    Toast.makeText(this, "Message does not exist", Toast.LENGTH_LONG).show()
+                    val intent = Intent(this, ActionActivity::class.java)
+                    intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TASK.or(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    startActivity(intent)
                 }
             }
             catch (e: Exception) {
@@ -193,7 +191,7 @@ class DecryptActivity : AppCompatActivity() {
 
         if (id == intent.getStringExtra("uid") && metadataUrl == intent.getStringExtra("url")) {
             val result = KotlinPGP.decrypt(
-                myPrivateKey, // A private key string
+                myPrivateKey,
                 pass,
                 encString
             )

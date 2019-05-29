@@ -8,7 +8,6 @@ import android.provider.MediaStore
 import android.util.Log
 import android.widget.Toast
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.storage.FirebaseStorage
@@ -71,7 +70,7 @@ class RegisterActivity : AppCompatActivity() {
 
                 Log.d(TAG, "GOOD Created user with uid: ${it.result?.user?.uid}")
 
-                uploadAva()
+                uploadAva(avaUri)
             }
             .addOnFailureListener {
                 Log.d(TAG, "BAD Failed to create user: ${it.message}")
@@ -79,7 +78,7 @@ class RegisterActivity : AppCompatActivity() {
             }
     }
 
-    private fun uploadAva() {
+    private fun uploadAva(avaUri: Uri?) {
         if (avaUri == null) return
 
         val filename = UUID.randomUUID().toString()
@@ -105,7 +104,6 @@ class RegisterActivity : AppCompatActivity() {
         val timestamp = FirebaseAuth.getInstance().currentUser?.metadata?.creationTimestamp.toString()
         val ref = FirebaseDatabase.getInstance().getReference("/users")
 
-        val pass = pass_edittxt_reg.text.toString()
         val krgen = Pgp.generateKeyRingGenerator((uid + timestamp).toCharArray())
         val publicKey = Pgp.genPGPPublicKey(krgen)
         val privateKey = Pgp.genPGPPrivKey(krgen)
